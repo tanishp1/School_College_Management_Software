@@ -17,6 +17,7 @@ export default function AttendancePage() {
   const [activeTab, setActiveTab] = useState("mark");
   const [searchTerm, setSearchTerm] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const { academicYear } = useSelector((s) => s.academicYear);
 
   const token = getToken();
@@ -63,12 +64,17 @@ export default function AttendancePage() {
 
   const handleSave = async () => {
     if (!selectedClass || !selectedDate) return;
+    setSaveError("");
     const records = students.map((s) => ({ studentId: s._id, status: attendance[s._id] || "Absent" }));
-    await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/attendance`, {
-      classId: selectedClass, date: selectedDate, academicYear, records,
-    }, { headers });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/attendance`, {
+        classId: selectedClass, date: selectedDate, academicYear, records,
+      }, { headers });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setSaveError(err.response?.data?.message || "Unable to save attendance.");
+    }
   };
 
   const handleExport = () => {
@@ -170,6 +176,7 @@ export default function AttendancePage() {
           </div>
           {selectedClass && students.length > 0 && (
             <div className="mt-3 text-end">
+              {saveError && <div className="alert alert-danger text-start">{saveError}</div>}
               <button className="btn px-4 py-2" onClick={handleSave}
                 style={{ backgroundColor: "#EF7E20", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "600" }}>
                 <FaCheck className="me-2" /> {saved ? "Saved!" : "Save Attendance"}

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
 import axios from "axios";
 import { getToken } from "@/utils/auth";
+import OrganizationForm from "../Organization/OrganizationForm";
 
 export default function EmployeeForm({
   show,
@@ -11,10 +12,13 @@ export default function EmployeeForm({
   editEmployee,
   departments,
   academicYear,
+  userRole,
 }) {
   const [aqarAccess, setAqarAccess] = useState(false);
+  const [organizations, setOrganizations] = useState([]);
+  const [organizationId, setOrganizationId] = useState("");
+  const [showOrganizationForm, setShowOrganizationForm] = useState(false);
 
-  console.log(aqarAccess, "aqarAccess");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -53,6 +57,7 @@ export default function EmployeeForm({
           : "",
         password: "", // Do not pre-fill password for security
       });
+      setOrganizationId(editEmployee.organizationId || "");
     } else {
       setFormData({
         name: "",
@@ -64,8 +69,27 @@ export default function EmployeeForm({
         dateOfJoining: "",
         password: "",
       });
+      setOrganizationId("");
     }
   }, [editEmployee]);
+
+  useEffect(() => {
+    if (!show || userRole !== "SuperAdmin") return;
+
+    const fetchOrganizations = async () => {
+      try {
+        const res = await axios
+      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/organizations`, {
+        headers: { "x-auth-token": getToken() },
+          });
+        setOrganizations(res.data.data || []);
+      } catch {
+        setOrganizations([]);
+      }
+    };
+
+    fetchOrganizations();
+  }, [show, userRole]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -80,6 +104,8 @@ export default function EmployeeForm({
     )
       newErrors.department = "Department is required";
     if (!formData.role) newErrors.role = "Role is required";
+    if (!editEmployee && userRole === "SuperAdmin" && !organizationId)
+      newErrors.organizationId = "Organization is required";
     if (!editEmployee && !formData.password)
       newErrors.password = "Password is required for new employee";
     else if (!editEmployee && formData.password.length < 8)
@@ -124,6 +150,7 @@ export default function EmployeeForm({
         password: formData.password || undefined, // Omit password if not provided during edit
         academicYear: academicYear,
         aqarAccess: true,
+        organizationId: organizationId || undefined,
       };
 
       if (editEmployee) {
@@ -163,7 +190,6 @@ export default function EmployeeForm({
       fetchEmployees();
       onHide();
     } catch (err) {
-      console.error("Error saving employee:", err);
       setErrors({
         submit: err.response?.data?.message || "Failed to save employee",
       });
@@ -307,6 +333,50 @@ export default function EmployeeForm({
             )}
           </div>
 
+          {userRole === "SuperAdmin" && !editEmployee && (
+            <div className="mb-3">
+              <label
+                className="form-label"
+                style={{ color: "#1A3159", fontWeight: "500" }}
+              >
+                Organization
+              </label>
+              <select
+                className={`form-select ${errors.organizationId ? "is-invalid" : ""}`}
+                value={organizationId}
+                onChange={(e) => {
+                  setOrganizationId(e.target.value);
+                  setErrors({ ...errors, organizationId: "" });
+                }}
+                style={{ borderColor: "#1A3159", borderRadius: "8px" }}
+              >
+                <option value="">Select organization</option>
+                {organizations.map((organization) => (
+                  <option key={organization._id} value={organization._id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </select>
+              {organizations.length === 0 && (
+                <div className="mt-2">
+                  <div className="text-muted mb-2">
+                    No organizations found. Create one before adding an employee.
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline-primary"
+                    onClick={() => setShowOrganizationForm(true)}
+                  >
+                    Create organization
+                  </Button>
+                </div>
+              )}
+              {errors.organizationId && (
+                <div className="invalid-feedback">{errors.organizationId}</div>
+              )}
+            </div>
+          )}
+
           <div className="mb-3">
             <label
               className="form-label"
@@ -414,6 +484,21 @@ export default function EmployeeForm({
           </div>
         </form>
       </Modal.Body>
+      <OrganizationForm
+        show={showOrganizationForm}
+        onHide={() => setShowOrganizationForm(false)}
+        fetchData={async () => {
+          const res = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/organizations`,
+            { headers: { "x-auth-token": getToken() } }
+          );
+          const nextOrganizations = res.data.data || [];
+          setOrganizations(nextOrganizations);
+          if (nextOrganizations.length === 1) {
+            setOrganizationId(nextOrganizations[0]._id);
+          }
+        }}
+      />
     </Modal>
   );
 }

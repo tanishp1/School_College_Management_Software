@@ -103,15 +103,9 @@ userSchema.index({ role: 1 });
 userSchema.index({ department: 1 });
 userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
 
-// Enforce single SuperAdmin
+// Pre-save hook
 userSchema.pre("save", async function (next) {
   if (this.role === "SuperAdmin") {
-    const existingSuperAdmin = await this.constructor.findOne({
-      role: "SuperAdmin",
-    });
-    if (existingSuperAdmin && !this._id.equals(existingSuperAdmin._id)) {
-      return next(new Error("Only one SuperAdmin account is allowed"));
-    }
     this.organizationId = undefined;
     this.department = undefined;
     this.employeeId = undefined;

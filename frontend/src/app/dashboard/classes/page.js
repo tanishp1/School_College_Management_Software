@@ -392,12 +392,14 @@ export default function Class() {
             show={showAddModal}
             onHide={() => setShowAddModal(false)}
             fetchClasses={fetchClasses}
+            userRole={role}
           />
           <ClassForm
             show={!!editClass}
             onHide={() => setEditClass(null)}
             fetchClasses={fetchClasses}
             editClass={editClass}
+            userRole={role}
           />
         </>
       )}

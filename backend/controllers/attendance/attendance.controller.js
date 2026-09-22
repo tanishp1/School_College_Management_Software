@@ -23,17 +23,27 @@ exports.getAttendance = async (req, res) => {
 
 exports.markAttendance = async (req, res) => {
   try {
-    if (!["Teacher", "Faculty", "Principal", "OrganizationAdmin"].includes(req.user.role)) {
+    if (!["SuperAdmin", "Teacher", "Faculty", "Principal", "OrganizationAdmin"].includes(req.user.role)) {
       return sendResponse(res, 403, null, "Unauthorized");
     }
 
     const { classId, date, academicYear, records } = req.body;
+    const selectedClass = await Class.findById(classId).select("organizationId");
+    if (!selectedClass) {
+      return sendResponse(res, 400, null, "Invalid class");
+    }
+
+    if (req.user.role !== "SuperAdmin" && selectedClass.organizationId.toString() !== req.user.organizationId?.toString()) {
+      return sendResponse(res, 403, null, "You cannot mark attendance for this class");
+    }
+
+    const organizationId = selectedClass.organizationId;
     // records = [{ studentId, status }]
 
     const results = await Promise.all(records.map(async ({ studentId, status }) => {
       return Attendance.findOneAndUpdate(
-        { organizationId: req.user.organizationId, classId, studentId, date },
-        { organizationId: req.user.organizationId, classId, studentId, date, status, academicYear, markedBy: req.user.id },
+        { organizationId, classId, studentId, date },
+        { organizationId, classId, studentId, date, status, academicYear, markedBy: req.user.id },
         { upsert: true, new: true }
       );
     }));

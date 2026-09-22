@@ -44,18 +44,23 @@ const registerSuperAdmin = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const email = req.body.email?.trim().toLowerCase();
+  const { password } = req.body;
   try {
+    if (!email || !password) {
+      return sendResponse(res, 400, null, "Email and password are required");
+    }
+
     const user = await User.findOne({ email }).lean();
 
     if (!user) {
       logger.warn(`Login failed: Invalid email ${email}`);
-      return sendResponse(res, 400, null, "Invalid credentials");
+      return sendResponse(res, 400, null, "No account found for this email");
     }
 
     if (user.password !== password) {
       logger.warn(`Login failed: Invalid password for ${email}`);
-      return sendResponse(res, 400, null, "Invalid credentials");
+      return sendResponse(res, 400, null, "Incorrect password");
     }
 
     const token = jwt.sign(

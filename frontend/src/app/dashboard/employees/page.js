@@ -452,6 +452,7 @@ const departments = [
         fetchEmployees={fetchEmployees}
         departments={departments}
         academicYear={academicYear}
+        userRole={role}
       />
       <EmployeeForm
         show={!!editEmployee}
@@ -460,6 +461,7 @@ const departments = [
         editEmployee={editEmployee}
         departments={departments}
         academicYear={academicYear}
+        userRole={role}
 
       />
       <EmployeeView

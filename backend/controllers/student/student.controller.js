@@ -63,15 +63,15 @@ exports.createStudent = async (req, res) => {
 
     const organizationId = user.role === "SuperAdmin" ? req.body.organizationId : user.organizationId;
     if (!organizationId) {
-      return sendResponse(res, 400, "Organization ID is required");
+      return sendResponse(res, 400, null, "Organization ID is required");
     }
 
     const cls = await Class.findById(classId);
     if (!cls) {
-      return sendResponse(res, 400, "Invalid class ID");
+      return sendResponse(res, 400, null, "Invalid class ID");
     }
     if (cls.organizationId.toString() !== organizationId.toString()) {
-      return sendResponse(res, 403, "Class does not belong to your organization");
+      return sendResponse(res, 403, null, "Class does not belong to your organization");
     }
 
     const student = new Student({
@@ -98,9 +98,12 @@ exports.createStudent = async (req, res) => {
       .lean();
     populatedStudent.className = populatedStudent.classId ? `${populatedStudent.classId.name} (${populatedStudent.classId.academicYear})` : "-";
 
-    sendResponse(res, 201, "Student created successfully", { student: populatedStudent });
+    sendResponse(res, 201, { student: populatedStudent }, "Student created successfully");
   } catch (err) {
-    sendResponse(res, 500, err.message);
+    if (err.name === "ValidationError" || err.code === 11000) {
+      return sendResponse(res, 400, null, err.message);
+    }
+    sendResponse(res, 500, null, "Unable to create student");
   }
 };
 
@@ -124,10 +127,10 @@ exports.updateStudent = async (req, res) => {
     if (classId && classId !== student.classId.toString()) {
       const newClass = await Class.findById(classId);
       if (!newClass) {
-        return sendResponse(res, 400, "Invalid class ID");
+        return sendResponse(res, 400, null, "Invalid class ID");
       }
       if (newClass.organizationId.toString() !== student.organizationId.toString()) {
-        return sendResponse(res, 403, "Class does not belong to your organization");
+        return sendResponse(res, 403, null, "Class does not belong to your organization");
       }
 
       // Remove student from old class
@@ -161,9 +164,12 @@ exports.updateStudent = async (req, res) => {
       .lean();
     populatedStudent.className = populatedStudent.classId ? `${populatedStudent.classId.name} (${populatedStudent.classId.academicYear})` : "-";
 
-    sendResponse(res, 200, "Student updated successfully", { student: populatedStudent });
+    sendResponse(res, 200, { student: populatedStudent }, "Student updated successfully");
   } catch (err) {
-    sendResponse(res, 500, err.message);
+    if (err.name === "ValidationError" || err.code === 11000) {
+      return sendResponse(res, 400, null, err.message);
+    }
+    sendResponse(res, 500, null, "Unable to update student");
   }
 };
 

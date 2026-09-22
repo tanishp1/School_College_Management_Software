@@ -127,7 +127,7 @@ export default function Login() {
     setError(null);
     try {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
       setToken(res.data.data.token);
@@ -136,8 +136,10 @@ export default function Login() {
       // setError(null);
       // setSuccess("Login successful! Redirecting...");
     } catch (err) {
-      console.error(err.response?.data);
-      setError("Invalid email or password. Please try again.");
+      setError(
+        err.response?.data?.message ||
+          "Unable to sign in. Check your email and password."
+      );
     } finally {
       setIsLoading(false);
     }

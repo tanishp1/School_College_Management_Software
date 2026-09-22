@@ -6,13 +6,15 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { getToken } from "@/utils/auth";
 
-export default function ClassForm({ show, onHide, fetchClasses, editClass }) {
+export default function ClassForm({ show, onHide, fetchClasses, editClass, userRole }) {
   const [formData, setFormData] = useState({
     name: "",
     academicYear: "2025 - 2026",
     teacherId: "",
   });
   const [teachers, setTeachers] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [organizationId, setOrganizationId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -31,6 +33,21 @@ export default function ClassForm({ show, onHide, fetchClasses, editClass }) {
       });
     }
   }, [editClass]);
+
+  useEffect(() => {
+    setOrganizationId(editClass?.organizationId?._id || editClass?.organizationId || "");
+  }, [editClass]);
+
+  useEffect(() => {
+    if (!show || userRole !== "SuperAdmin") return;
+
+    axios
+      .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/organizations`, {
+        headers: { "x-auth-token": getToken() },
+      })
+      .then((res) => setOrganizations(res.data.data || []))
+      .catch(() => setOrganizations([]));
+  }, [show, userRole]);
 
   useEffect(() => {
     const fetchTeachers = async () => {
@@ -62,6 +79,10 @@ export default function ClassForm({ show, onHide, fetchClasses, editClass }) {
       setError("Academic year is required.");
       return false;
     }
+    if (!editClass && userRole === "SuperAdmin" && !organizationId) {
+      setError("Organization is required.");
+      return false;
+    }
     return true;
   };
 
@@ -78,7 +99,12 @@ export default function ClassForm({ show, onHide, fetchClasses, editClass }) {
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/classes`;
       const method = editClass ? "put" : "post";
 
-      await axios[method](url, formData, {
+      const data = {
+        ...formData,
+        organizationId: organizationId || undefined,
+      };
+
+      await axios[method](url, data, {
         headers: { 
           "x-auth-token": getToken(),
           "Content-Type": "application/json"
@@ -124,6 +150,31 @@ export default function ClassForm({ show, onHide, fetchClasses, editClass }) {
               style={{ borderColor: "#1A3159" }}
             />
           </Form.Group>
+          {userRole === "SuperAdmin" && !editClass && (
+            <Form.Group className="mb-3">
+              <Form.Label style={{ color: "#1A3159" }}>Organization</Form.Label>
+              <Form.Select
+                value={organizationId}
+                onChange={(e) => {
+                  setOrganizationId(e.target.value);
+                  setError("");
+                }}
+                style={{ borderColor: "#1A3159" }}
+              >
+                <option value="">Select Organization</option>
+                {organizations.map((organization) => (
+                  <option key={organization._id} value={organization._id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </Form.Select>
+              {!organizations.length && (
+                <Form.Text className="text-danger">
+                  Create an organization before creating a class.
+                </Form.Text>
+              )}
+            </Form.Group>
+          )}
           <Form.Group className="mb-3">
             <Form.Label style={{ color: "#1A3159" }}>Academic Year</Form.Label>
             <Form.Select

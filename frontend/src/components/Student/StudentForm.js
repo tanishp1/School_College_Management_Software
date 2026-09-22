@@ -5,6 +5,7 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { getToken } from "@/utils/auth";
+import ClassForm from "../class/ClassForm";
 
 export default function StudentForm({
   show,
@@ -13,6 +14,7 @@ export default function StudentForm({
   editStudent,
   classes,
   fetchClasses,
+  userRole,
 }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -27,13 +29,14 @@ export default function StudentForm({
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showClassForm, setShowClassForm] = useState(false);
 
   useEffect(() => {
     if (editStudent) {
       setFormData({
         name: editStudent.name || "",
         email: editStudent.email || "",
-        class: editStudent.classId?._id || "",
+        classId: editStudent.classId?._id || editStudent.classId || "",
         rollNumber: editStudent.rollNumber || "",
         category: editStudent.category || "",
         phoneNumber: editStudent.phoneNumber || "",
@@ -60,14 +63,29 @@ export default function StudentForm({
     }
   }, [editStudent]);
 
+  useEffect(() => {
+    if (!show) return;
+
+    fetchClasses?.();
+  }, [show]);
+
+  useEffect(() => {
+    if (!editStudent && classes?.length === 1 && !formData.classId) {
+      setFormData((currentData) => ({
+        ...currentData,
+        classId: classes[0]._id,
+      }));
+    }
+  }, [classes, editStudent, formData.classId]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
   const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.class || !formData.rollNumber) {
-      setError("Name, Email, Class, and Roll Number are required.");
+    if (!formData.name || !formData.email || !formData.classId || !formData.rollNumber || !formData.category) {
+      setError("Name, Email, Class, Roll Number, and Category are required.");
       return false;
     }
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
@@ -86,7 +104,7 @@ export default function StudentForm({
     setError("");
     setSuccess("");
 
-    // if (!validateForm()) return;
+    if (!validateForm()) return;
 
     try {
       const url = editStudent
@@ -94,7 +112,13 @@ export default function StudentForm({
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/students`;
       const method = editStudent ? "put" : "post";
 
-      await axios[method](url, formData, {
+      const selectedClass = classes.find((classItem) => classItem._id === formData.classId);
+      const data = {
+        ...formData,
+        organizationId: selectedClass?.organizationId?._id || selectedClass?.organizationId,
+      };
+
+      await axios[method](url, data, {
         headers: { "x-auth-token": getToken() },
       });
       setSuccess(`Student ${editStudent ? "updated" : "added"} successfully!`);
@@ -104,8 +128,10 @@ export default function StudentForm({
         setSuccess("");
       }, 1000);
     } catch (err) {
-      console.error(`Error ${editStudent ? "updating" : "adding"} student:`, err);
-      setError(`Failed to ${editStudent ? "update" : "add"} student.`);
+      setError(
+        err.response?.data?.message ||
+          `Failed to ${editStudent ? "update" : "add"} student.`
+      );
     }
   };
 
@@ -152,7 +178,6 @@ export default function StudentForm({
             />
           </Form.Group>
           <Form.Group className="mb-3">
-            <Form.Label style={{ color: "#1A3159" }}>Class</Form.Label>
             <Form.Select
               name="classId"
               value={formData.classId}
@@ -162,10 +187,24 @@ export default function StudentForm({
               <option value="">Select Class</option>
               {classes && classes.map((cls) => (
                 <option key={cls._id} value={cls._id}>
-                  {cls.name}
+                  {cls.name} ({cls.academicYear})
                 </option>
               ))}
             </Form.Select>
+            {!classes?.length && (
+              <div>
+                <Form.Text className="text-danger d-block mb-2">
+                  No classes available. Create a class before adding a student.
+                </Form.Text>
+                <Button
+                  type="button"
+                  variant="outline-primary"
+                  onClick={() => setShowClassForm(true)}
+                >
+                  Create class
+                </Button>
+              </div>
+            )}
           </Form.Group>
           <Form.Group>
             <Form.Label style={{ color: "#1A3159" }}>Roll Number</Form.Label>
@@ -254,12 +293,13 @@ export default function StudentForm({
                 setFormData({
                   name: "",
                   email: "",
-                  class: "",
+                  classId: "",
                   rollNumber: "",
                   category: "",
                   phoneNumber: "",
                   dateOfBirth: "",
                   address: "",
+                  password: "",
                 });
                 setError("");
                 setSuccess("");
@@ -271,6 +311,15 @@ export default function StudentForm({
           </div>
         </Form>
       </Modal.Body>
+      <ClassForm
+        show={showClassForm}
+        onHide={() => setShowClassForm(false)}
+        userRole={userRole}
+        fetchClasses={async () => {
+          await fetchClasses?.();
+          setShowClassForm(false);
+        }}
+      />
     </Modal>
   );
 }

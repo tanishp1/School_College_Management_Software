@@ -1,10 +1,11 @@
+require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
+
 const express = require("express");
 const cors = require("cors");
 const { connectDB } = require("./config/db");
 const { logger } = require("./config/logger");
 
 const app = express();
-require('dotenv').config();
 
 // Connect to MongoDB
 connectDB();

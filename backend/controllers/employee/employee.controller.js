@@ -107,10 +107,9 @@ exports.createEmployee = async (req, res) => {
       dateOfJoining,
       password,
       academicYear,
-      aqarAccess
+      aqarAccess,
+      organizationId
     } = req.body;
-
-    const employeeId = await generateUniqueEmployeeId(role);
 
     if (
       !["SuperAdmin", "OrganizationAdmin", "Principal"].includes(req.user.role)
@@ -118,6 +117,7 @@ exports.createEmployee = async (req, res) => {
       return sendResponse(
         res,
         403,
+        null,
         "Only SuperAdmin or OrganizationAdmin can create employees"
       );
     }
@@ -132,12 +132,39 @@ exports.createEmployee = async (req, res) => {
       "Parents",
     ];
     if (!employeeRoles.includes(role)) {
-      return sendResponse(res, 400, "Invalid role for employee");
+      return sendResponse(res, 400, null, "Invalid role for employee");
     }
+
+    if (!req.user.organizationId && req.user.role !== "SuperAdmin") {
+      return sendResponse(
+        res,
+        400,
+        null,
+        "Your account is not linked to an organization"
+      );
+    }
+
+    if (!password) {
+      return sendResponse(
+        res,
+        400,
+        null,
+        "Password is required for a new employee"
+      );
+    }
+
+    const employeeOrganizationId =
+      req.user.role === "SuperAdmin" ? organizationId : req.user.organizationId;
+
+    if (!employeeOrganizationId) {
+      return sendResponse(res, 400, null, "Organization is required");
+    }
+
+    const employeeId = await generateUniqueEmployeeId(role);
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return sendResponse(res, 400, "Email already exists");
+      return sendResponse(res, 400, null, "Email already exists");
     }
     const employee = new User({
       name,
@@ -149,15 +176,20 @@ exports.createEmployee = async (req, res) => {
       phoneNumber,
       dateOfJoining,
       password, // Store plain text password as requested
-      organizationId: req.user.organizationId || undefined,
+      organizationId: employeeOrganizationId,
       academicYear,
       aqarAccess
     });
 
     await employee.save();
-    sendResponse(res, 201, "Employee created successfully", { employee });
+    sendResponse(res, 201, { employee }, "Employee created successfully");
   } catch (err) {
-    sendResponse(res, 500, err.message);
+    if (err.name === "ValidationError" || err.code === 11000) {
+      return sendResponse(res, 400, null, err.message);
+    }
+
+    console.error("Error creating employee:", err);
+    sendResponse(res, 500, "Unable to create employee");
   }
 };
 

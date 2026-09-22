@@ -448,6 +448,7 @@ export default function Student() {
             fetchStudents={fetchStudents}
             classes={classes}
             fetchClasses={fetchClasses}
+            userRole={role}
           />
           <StudentForm
             show={!!editStudent}
@@ -456,6 +457,7 @@ export default function Student() {
             editStudent={editStudent}
             classes={classes}
             fetchClasses={fetchClasses}
+            userRole={role}
           />
         </>
       )}
